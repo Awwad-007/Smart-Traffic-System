@@ -3,7 +3,7 @@ import pymysql
 
 app = Flask(__name__)
 
-# Updated connection using PyMySQL
+# Connection settings
 def get_db_connection():
     return pymysql.connect(
         host="localhost",
@@ -18,13 +18,12 @@ def index():
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            # Using the VIEW we created
             cursor.execute("SELECT * FROM traffic_dashboard")
             data = cursor.fetchall()
         conn.close()
         return render_template('index.html', traffic_data=data)
     except Exception as e:
-        return f"Database Error: {e}"
+        return f"Database Error: {e}. Make sure XAMPP is running!"
 
 if __name__ == '__main__':
     app.run(debug=True)

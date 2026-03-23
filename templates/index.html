@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Traffic Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; text-align: center; padding: 40px; }
+        table { margin: 30px auto; border-collapse: collapse; width: 85%; background: #1e1e1e; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 18px; border-bottom: 1px solid #333; }
+        th { background: #252525; color: #00d4ff; text-transform: uppercase; letter-spacing: 1px; }
+        .RED { color: #ff4d4d; font-weight: bold; background: rgba(255, 77, 77, 0.1); }
+        .GREEN { color: #2ecc71; font-weight: bold; background: rgba(46, 204, 113, 0.1); }
+        h1 { font-weight: 300; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+    <h1>🚦 City Traffic Management System</h1>
+    <p>Live Database Feed</p>
+    <table>
+        <tr>
+            <th>Junction Location</th>
+            <th>Current Signal</th>
+            <th>Total Vehicle Count</th>
+        </tr>
+        {% for row in traffic_data %}
+        <tr>
+            <td>{{ row.Junction }}</td>
+            <td class="{{ row.Signal_Status }}">{{ row.Signal_Status }}</td>
+            <td>{{ row.Vehicles_Passed }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
