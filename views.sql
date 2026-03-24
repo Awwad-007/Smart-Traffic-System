@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS trafficlogs (
     FOREIGN KEY (signal_id) REFERENCES signals(signal_id)
 );
 
--- 2. Create the View for the Web Dashboard
+-- 2. Dashboard View
 CREATE OR REPLACE VIEW traffic_dashboard AS
 SELECT 
     s.signal_id AS ID,
@@ -27,28 +27,7 @@ FROM signals s
 LEFT JOIN trafficlogs l ON s.signal_id = l.signal_id
 GROUP BY s.signal_id;
 
--- 3. The PRO Feature: Stored Procedure
-DELIMITER //
-CREATE PROCEDURE IF NOT EXISTS ForceEmergencyGreen(IN target_id INT)
-BEGIN
-    UPDATE signals SET current_state = 'GREEN' WHERE signal_id = target_id;
-    UPDATE signals SET current_state = 'RED' WHERE signal_id != target_id;
-    INSERT INTO trafficlogs (signal_id, vehicle_id) VALUES (target_id, 911);
-END //
-DELIMITER ;
-
--- 4. Initial Data
-INSERT IGNORE INTO signals (signal_id, location_name, current_state) 
-VALUES (1, 'Silk Board Junction', 'RED'), (2, 'Indiranagar 100ft Rd', 'GREEN');
-
-USE SmartTrafficDB;
-
--- This removes the strict rule so you can enter any Vehicle ID you want
-ALTER TABLE trafficlogs DROP FOREIGN KEY trafficlogs_ibfk_2;
-
-USE SmartTrafficDB;
-
--- This new view shows the last 5 emergency actions taken
+-- 3. Audit Log View
 CREATE OR REPLACE VIEW emergency_logs AS
 SELECT 
     l.log_id, 
@@ -59,3 +38,23 @@ FROM trafficlogs l
 JOIN signals s ON l.signal_id = s.signal_id
 ORDER BY l.passing_time DESC
 LIMIT 5;
+
+-- 4. Stored Procedure
+DELIMITER //
+CREATE PROCEDURE IF NOT EXISTS ForceEmergencyGreen(IN target_id INT)
+BEGIN
+    UPDATE signals SET current_state = 'GREEN' WHERE signal_id = target_id;
+    UPDATE signals SET current_state = 'RED' WHERE signal_id != target_id;
+    INSERT INTO trafficlogs (signal_id, vehicle_id) VALUES (target_id, 911);
+END //
+DELIMITER ;
+
+-- 5. Expand City to 4 Junctions
+DELETE FROM trafficlogs;
+DELETE FROM signals;
+INSERT INTO signals (signal_id, location_name, current_state) 
+VALUES 
+(1, 'Silk Board Junction', 'RED'), 
+(2, 'Indiranagar 100ft Rd', 'GREEN'),
+(3, 'Koramangala 80ft Rd', 'RED'),
+(4, 'MG Road Metro', 'GREEN');
