@@ -51,3 +51,21 @@
     </div>
 </body>
 </html>
+
+<h2 style="margin-top: 50px;">📜 System Audit Log (Recent Overrides)</h2>
+        <table style="border: 1px solid #30363d;">
+            <tr style="background: #21262d;">
+                <th>Log ID</th>
+                <th>Location</th>
+                <th>Vehicle Type</th>
+                <th>Timestamp</th>
+            </tr>
+            {% for log in history_data %}
+            <tr>
+                <td>#{{ log.log_id }}</td>
+                <td>{{ log.location_name }}</td>
+                <td>{{ 'EMERGENCY' if log.vehicle_id == 911 else 'STANDARD' }}</td>
+                <td style="color: #8b949e; font-size: 13px;">{{ log.passing_time }}</td>
+            </tr>
+            {% endfor %}
+        </table>

@@ -40,3 +40,22 @@ DELIMITER ;
 -- 4. Initial Data
 INSERT IGNORE INTO signals (signal_id, location_name, current_state) 
 VALUES (1, 'Silk Board Junction', 'RED'), (2, 'Indiranagar 100ft Rd', 'GREEN');
+
+USE SmartTrafficDB;
+
+-- This removes the strict rule so you can enter any Vehicle ID you want
+ALTER TABLE trafficlogs DROP FOREIGN KEY trafficlogs_ibfk_2;
+
+USE SmartTrafficDB;
+
+-- This new view shows the last 5 emergency actions taken
+CREATE OR REPLACE VIEW emergency_logs AS
+SELECT 
+    l.log_id, 
+    s.location_name, 
+    l.vehicle_id, 
+    l.passing_time 
+FROM trafficlogs l
+JOIN signals s ON l.signal_id = s.signal_id
+ORDER BY l.passing_time DESC
+LIMIT 5;
