@@ -5,33 +5,29 @@ import threading
 import time
 
 app = Flask(__name__)
-last_override_time = 0  # Global tracker for emergency overrides
+last_override_time = 0 
 
 def get_db_connection():
-    return pymysql.connect(
-        host="localhost", user="root", password="",
-        database="SmartTrafficDB", cursorclass=pymysql.cursors.DictCursor
-    )
+    return pymysql.connect(host="localhost", user="root", password="", database="SmartTrafficDB", cursorclass=pymysql.cursors.DictCursor)
 
-# --- BACKGROUND: AUTO-SIMULATE VEHICLES ---
+# --- BACKGROUND: RANDOM TRAFFIC GENERATOR ---
 def auto_simulate():
     while True:
         try:
             conn = get_db_connection()
             with conn.cursor() as cursor:
-                s_id = random.choice([1, 2, 3, 4])
-                cursor.execute("INSERT INTO trafficlogs (signal_id, vehicle_id) VALUES (%s, %s)", (s_id, random.randint(100,800)))
+                cursor.execute("INSERT INTO trafficlogs (signal_id, vehicle_id) VALUES (%s, %s)", (random.choice([1,2,3,4]), random.randint(100,800)))
                 conn.commit()
             conn.close()
         except: pass
         time.sleep(random.randint(2, 4))
 
-# --- BACKGROUND: 10s AUTO-CYCLE & 15s OVERRIDE RECOVERY ---
+# --- BACKGROUND: 10s CYCLE & 15s RECOVERY ---
 def auto_cycle_signals():
     global last_override_time
-    current_green = 1
+    curr = 1
     while True:
-        # If an override happened < 15s ago, PAUSE the normal cycle
+        # If Override active (<15s ago), pause normal cycle
         if time.time() - last_override_time < 15:
             time.sleep(1)
             continue
@@ -40,13 +36,12 @@ def auto_cycle_signals():
             conn = get_db_connection()
             with conn.cursor() as cursor:
                 cursor.execute("UPDATE signals SET current_state = 'RED'")
-                cursor.execute("UPDATE signals SET current_state = 'GREEN' WHERE signal_id = %s", (current_green,))
+                cursor.execute("UPDATE signals SET current_state = 'GREEN' WHERE signal_id = %s", (curr,))
                 conn.commit()
             conn.close()
-            current_green = (current_green % 4) + 1
+            curr = (curr % 4) + 1
         except: pass
-        
-        time.sleep(10) # Your 10-second normal cycle
+        time.sleep(10) # Normal 10s Interval
 
 threading.Thread(target=auto_simulate, daemon=True).start()
 threading.Thread(target=auto_cycle_signals, daemon=True).start()
@@ -65,8 +60,8 @@ def index():
 @app.route('/simulate', methods=['POST'])
 def simulate():
     global last_override_time
+    last_override_time = time.time() # Mark the 15s Emergency Window
     s_id = request.form['s_id']
-    last_override_time = time.time() # Start 15s override window
     conn = get_db_connection()
     with conn.cursor() as cursor:
         cursor.callproc('ForceEmergencyGreen', [s_id])

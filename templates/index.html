@@ -1,17 +1,105 @@
-<div style="margin-top: 40px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 10px;">
-    <p style="margin:0; font-size: 12px; color: #8b949e;">SYSTEM HEARTBEAT</p>
-    <p>⏱️ Next Cycle: <span id="timer" style="color: var(--neon-blue); font-weight: bold;">10s</span></p>
-    <p id="mode-status" style="font-size: 11px; color: #3fb950;">MODE: AUTO-ROTATION</p>
-</div>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart City TMS v5.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --neon-blue: #00d4ff; --dark-bg: #0a0b10; --card-bg: #161b22; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--dark-bg); color: white; margin: 0; display: flex; overflow-x: hidden; }
+        .sidebar { width: 220px; background: var(--card-bg); height: 100vh; padding: 25px; border-right: 1px solid #30363d; position: fixed; }
+        .main-content { margin-left: 270px; flex: 1; padding: 40px; }
+        
+        /* CITY MAP */
+        .city-map { background: #000; padding: 20px; border-radius: 15px; border: 2px solid #333; margin-bottom: 30px; position: relative; height: 320px; }
+        .road { position: absolute; background: #222; z-index: 1; border: 1px dashed #444; }
+        .road-h1 { height: 40px; width: 100%; top: 70px; } .road-h2 { height: 40px; width: 100%; top: 210px; }
+        .road-v1 { width: 40px; height: 100%; left: 28%; } .road-v2 { width: 40px; height: 100%; left: 68%; }
 
-<script>
-    let timeLeft = 10;
-    setInterval(() => {
-        timeLeft--;
-        if (timeLeft < 0) timeLeft = 10;
-        document.getElementById('timer').innerText = timeLeft + "s";
-    }, 1000);
+        .junction-node { position: absolute; z-index: 2; background: #1c2128; border: 2px solid var(--neon-blue); border-radius: 12px; padding: 10px; width: 160px; text-align: center; }
+        .node-1 { left: 18%; top: 40px; } .node-2 { left: 58%; top: 40px; }
+        .node-3 { left: 18%; top: 180px; } .node-4 { left: 58%; top: 180px; }
 
-    // Refresh the page every 5 seconds to keep the Map and Chart live
-    setTimeout(() => { location.reload(); }, 5000);
-</script>
+        .light-indicator { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .RED { background: #f85149; box-shadow: 0 0 10px #f85149; }
+        .GREEN { background: #3fb950; box-shadow: 0 0 10px #3fb950; }
+
+        .dot { width: 5px; height: 5px; background: var(--neon-blue); border-radius: 50%; position: absolute; left: -10px; animation: flow 3s linear infinite; box-shadow: 0 0 5px var(--neon-blue); }
+        @keyframes flow { 0% { left: 0%; opacity: 0; } 50% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+
+        /* UI */
+        .stats-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .chart-container { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid #30363d; height: 250px; }
+        .btn-override { background: #f85149; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        table { width: 100%; background: var(--card-bg); border-radius: 12px; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #30363d; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2 style="color: var(--neon-blue);">🛰️ SKYNET TMS</h2>
+        <div style="margin-top: 40px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 10px;">
+            <p style="margin:0; font-size: 11px; color: #8b949e;">HEARTBEAT</p>
+            <p>⏱️ Cycle: <span id="timer" style="color: var(--neon-blue);">10s</span></p>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <h2>📍 Live Topology</h2>
+        <div class="city-map">
+            <div class="road road-h1"></div><div class="road road-h2"></div>
+            <div class="road road-v1"></div><div class="road road-v2"></div>
+            {% for row in traffic_data %}
+            <div class="junction-node node-{{ loop.index }}">
+                <div class="light-indicator {{ row.Signal_Status }}"></div>
+                <small style="color: #8b949e;">{{ row.Junction }}</small><br>
+                <b style="color: var(--neon-blue);">{{ row.Vehicles_Passed }} vps</b>
+                <div style="height:10px; overflow:hidden; position:relative;">
+                    <span class="dot"></span><span class="dot" style="animation-delay: 1s;"></span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="stats-grid">
+            <div class="chart-container"><canvas id="trafficChart"></canvas></div>
+            <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid #30363d;">
+                <h3>AI Insights</h3>
+                <p style="color: var(--neon-blue); font-size: 14px;">Optimizing Round-Robin slices...</p>
+            </div>
+        </div>
+
+        <h2>📜 Control Panel</h2>
+        <table>
+            <tr><th>Location</th><th>Status</th><th>Emergency</th></tr>
+            {% for row in traffic_data %}
+            <tr>
+                <td><b>{{ row.Junction }}</b></td>
+                <td><span style="color: {{ '#3fb950' if row.Signal_Status == 'GREEN' else '#f85149' }}">{{ row.Signal_Status }}</span></td>
+                <td>
+                    <form action="/simulate" method="POST">
+                        <input type="hidden" name="s_id" value="{{ row.ID }}">
+                        <button type="submit" class="btn-override">🚨 OVERRIDE</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('trafficChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [{% for row in traffic_data %} '{{ row.Junction }}', {% endfor %}],
+                datasets: [{ label: 'Density', data: [{% for row in traffic_data %} {{ row.Vehicles_Passed }}, {% endfor %}], backgroundColor: 'rgba(0, 212, 255, 0.5)', borderColor: '#00d4ff', borderWidth: 1 }]
+            },
+            options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#222' } } } }
+        });
+
+        let timeLeft = 10;
+        setInterval(() => { timeLeft--; if (timeLeft < 0) timeLeft = 10; document.getElementById('timer').innerText = timeLeft + "s"; }, 1000);
+        setTimeout(() => { location.reload(); }, 5000);
+    </script>
+</body>
+</html>
