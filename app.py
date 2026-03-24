@@ -13,10 +13,14 @@ def get_db_connection():
 def index():
     conn = get_db_connection()
     with conn.cursor() as cursor:
+        # Fetch Junctions
         cursor.execute("SELECT * FROM traffic_dashboard")
-        data = cursor.fetchall()
+        traffic_data = cursor.fetchall()
+        # Fetch History
+        cursor.execute("SELECT * FROM emergency_logs")
+        history_data = cursor.fetchall()
     conn.close()
-    return render_template('index.html', traffic_data=data)
+    return render_template('index.html', traffic_data=traffic_data, history_data=history_data)
 
 @app.route('/simulate', methods=['POST'])
 def simulate():
@@ -24,7 +28,6 @@ def simulate():
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
-            # Calling the Stored Procedure for the demo!
             cursor.callproc('ForceEmergencyGreen', [s_id])
         conn.commit()
     finally:
@@ -33,19 +36,3 @@ def simulate():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-    @app.route('/')
-def index():
-    conn = get_db_connection()
-    with conn.cursor() as cursor:
-        # Fetch Junction Status
-        cursor.execute("SELECT * FROM traffic_dashboard")
-        traffic_data = cursor.fetchall()
-        
-        # Fetch Emergency History
-        cursor.execute("SELECT * FROM emergency_logs")
-        history_data = cursor.fetchall()
-        
-    conn.close()
-    # Now we pass BOTH sets of data to the HTML
-    return render_template('index.html', traffic_data=traffic_data, history_data=history_data)
