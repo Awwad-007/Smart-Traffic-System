@@ -1,7 +1,7 @@
 CREATE DATABASE IF NOT EXISTS SmartTrafficDB;
 USE SmartTrafficDB;
 
--- 1. Create Tables
+-- 1. Tables
 CREATE TABLE IF NOT EXISTS signals (
     signal_id INT PRIMARY KEY AUTO_INCREMENT,
     location_name VARCHAR(100),
@@ -16,30 +16,16 @@ CREATE TABLE IF NOT EXISTS trafficlogs (
     FOREIGN KEY (signal_id) REFERENCES signals(signal_id)
 );
 
--- 2. Dashboard View
+-- 2. Views
 CREATE OR REPLACE VIEW traffic_dashboard AS
-SELECT 
-    s.signal_id AS ID,
-    s.location_name AS Junction,
-    s.current_state AS Signal_Status,
-    COUNT(l.log_id) AS Vehicles_Passed
-FROM signals s
-LEFT JOIN trafficlogs l ON s.signal_id = l.signal_id
-GROUP BY s.signal_id;
+SELECT s.signal_id AS ID, s.location_name AS Junction, s.current_state AS Signal_Status, COUNT(l.log_id) AS Vehicles_Passed
+FROM signals s LEFT JOIN trafficlogs l ON s.signal_id = l.signal_id GROUP BY s.signal_id;
 
--- 3. Audit Log View
 CREATE OR REPLACE VIEW emergency_logs AS
-SELECT 
-    l.log_id, 
-    s.location_name, 
-    l.vehicle_id, 
-    l.passing_time 
-FROM trafficlogs l
-JOIN signals s ON l.signal_id = s.signal_id
-ORDER BY l.passing_time DESC
-LIMIT 5;
+SELECT l.log_id, s.location_name, l.vehicle_id, l.passing_time 
+FROM trafficlogs l JOIN signals s ON l.signal_id = s.signal_id ORDER BY l.passing_time DESC LIMIT 5;
 
--- 4. Stored Procedure
+-- 3. Procedure
 DELIMITER //
 CREATE PROCEDURE IF NOT EXISTS ForceEmergencyGreen(IN target_id INT)
 BEGIN
@@ -49,12 +35,8 @@ BEGIN
 END //
 DELIMITER ;
 
--- 5. Expand City to 4 Junctions
-DELETE FROM trafficlogs;
-DELETE FROM signals;
-INSERT INTO signals (signal_id, location_name, current_state) 
-VALUES 
-(1, 'Silk Board Junction', 'RED'), 
-(2, 'Indiranagar 100ft Rd', 'GREEN'),
-(3, 'Koramangala 80ft Rd', 'RED'),
-(4, 'MG Road Metro', 'GREEN');
+-- 4. Initial Data
+DELETE FROM trafficlogs; DELETE FROM signals;
+INSERT INTO signals (signal_id, location_name, current_state) VALUES 
+(1, 'Silk Board Junction', 'RED'), (2, 'Indiranagar 100ft Rd', 'GREEN'),
+(3, 'Koramangala 80ft Rd', 'RED'), (4, 'MG Road Metro', 'GREEN');

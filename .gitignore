@@ -1,0 +1,16 @@
+# Python 
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+
+# VS Code
+.vscode/
+.history/
+*.log
+
+# Database (Optional but safe)
+*.sql.gz
+*.sqlite

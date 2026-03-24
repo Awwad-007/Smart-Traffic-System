@@ -31,4 +31,4 @@ INSERT IGNORE INTO signals (location_name, current_state)
 VALUES ('Silk Board Junction', 'RED'), ('Indiranagar 100ft Rd', 'GREEN');
 
 -- 4. VERIFICATION
-SELECT * FROM vehicles;
+SELECT * FROM vehicles;s

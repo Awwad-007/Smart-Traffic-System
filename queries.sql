@@ -21,3 +21,9 @@ SELECT
 FROM trafficlogs l
 JOIN vehicles v ON l.vehicle_id = v.vehicle_id
 JOIN signals s ON l.signal_id = s.signal_id;
+
+USE SmartTrafficDB;
+
+SELECT location_name, current_state FROM signals WHERE signal_id = 1;
+INSERT INTO trafficlogs (signal_id, vehicle_id) VALUES (1, 2);
+SELECT location_name, current_state FROM signals WHERE signal_id = 1;
