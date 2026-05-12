@@ -1,105 +1,516 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Smart City TMS v5.0</title>
+    <title>Smart City TMS v6.0</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --neon-blue: #00d4ff; --dark-bg: #0a0b10; --card-bg: #161b22; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--dark-bg); color: white; margin: 0; display: flex; overflow-x: hidden; }
-        .sidebar { width: 220px; background: var(--card-bg); height: 100vh; padding: 25px; border-right: 1px solid #30363d; position: fixed; }
-        .main-content { margin-left: 270px; flex: 1; padding: 40px; }
-        
-        /* CITY MAP */
-        .city-map { background: #000; padding: 20px; border-radius: 15px; border: 2px solid #333; margin-bottom: 30px; position: relative; height: 320px; }
-        .road { position: absolute; background: #222; z-index: 1; border: 1px dashed #444; }
-        .road-h1 { height: 40px; width: 100%; top: 70px; } .road-h2 { height: 40px; width: 100%; top: 210px; }
-        .road-v1 { width: 40px; height: 100%; left: 28%; } .road-v2 { width: 40px; height: 100%; left: 68%; }
+        :root {
+            --nb:  #00d4ff;
+            --bg:  #0a0b10;
+            --cb:  #161b22;
+            --bdr: #30363d;
+            --low:    #3fb950;
+            --med:    #d29922;
+            --high:   #f85149;
+            --muted:  #8b949e;
+        }
 
-        .junction-node { position: absolute; z-index: 2; background: #1c2128; border: 2px solid var(--neon-blue); border-radius: 12px; padding: 10px; width: 160px; text-align: center; }
-        .node-1 { left: 18%; top: 40px; } .node-2 { left: 58%; top: 40px; }
-        .node-3 { left: 18%; top: 180px; } .node-4 { left: 58%; top: 180px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .light-indicator { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-        .RED { background: #f85149; box-shadow: 0 0 10px #f85149; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: white;
+            display: flex;
+            overflow-x: hidden;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 220px;
+            background: var(--cb);
+            height: 100vh;
+            padding: 25px 20px;
+            border-right: 1px solid var(--bdr);
+            position: fixed;
+            top: 0; left: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .sidebar h2 { color: var(--nb); font-size: 15px; letter-spacing: 1px; }
+        .hb-box {
+            background: rgba(0,0,0,0.35);
+            border-radius: 10px;
+            padding: 14px;
+            border: 1px solid var(--bdr);
+        }
+        .hb-box p { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+        .lvl-legend { margin-top: 10px; font-size: 11px; }
+        .lvl-legend div { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+        .dot-sm { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+        /* ── Main ── */
+        .main { margin-left: 240px; flex: 1; padding: 35px 40px; }
+        h2 { margin-bottom: 16px; font-size: 16px; letter-spacing: .5px; color: #cdd9e5; }
+
+        /* ── City Map ── */
+        .city-map {
+            background: #000;
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #2a2f3a;
+            margin-bottom: 28px;
+            position: relative;
+            height: 320px;
+            overflow: hidden;
+        }
+        .road { position: absolute; background: #1c1f26; z-index: 1; border: 1px dashed #333; }
+        .road-h1 { height: 40px; width: 100%; top: 70px; }
+        .road-h2 { height: 40px; width: 100%; top: 210px; }
+        .road-v1 { width: 40px; height: 100%; left: 28%; }
+        .road-v2 { width: 40px; height: 100%; left: 68%; }
+
+        .jnode {
+            position: absolute;
+            z-index: 2;
+            background: #1c2128;
+            border: 2px solid var(--nb);
+            border-radius: 12px;
+            padding: 10px 12px;
+            width: 165px;
+            text-align: center;
+            transition: border-color .4s;
+        }
+        .jnode.HIGH { border-color: var(--high); }
+        .jnode.MEDIUM { border-color: var(--med); }
+        .jnode.LOW { border-color: var(--low); }
+
+        .node-1 { left: 18%; top: 35px; }
+        .node-2 { left: 58%; top: 35px; }
+        .node-3 { left: 18%; top: 178px; }
+        .node-4 { left: 58%; top: 178px; }
+
+        .li { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
+        .RED   { background: #f85149; box-shadow: 0 0 10px #f85149; }
         .GREEN { background: #3fb950; box-shadow: 0 0 10px #3fb950; }
 
-        .dot { width: 5px; height: 5px; background: var(--neon-blue); border-radius: 50%; position: absolute; left: -10px; animation: flow 3s linear infinite; box-shadow: 0 0 5px var(--neon-blue); }
-        @keyframes flow { 0% { left: 0%; opacity: 0; } 50% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+        .flow-dot {
+            width: 5px; height: 5px;
+            background: var(--nb);
+            border-radius: 50%;
+            position: absolute;
+            animation: flow 3s linear infinite;
+            box-shadow: 0 0 5px var(--nb);
+        }
+        @keyframes flow {
+            0%   { left: 0%;   opacity: 0; }
+            50%  {             opacity: 1; }
+            100% { left: 100%; opacity: 0; }
+        }
 
-        /* UI */
-        .stats-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px; }
-        .chart-container { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid #30363d; height: 250px; }
-        .btn-override { background: #f85149; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        table { width: 100%; background: var(--card-bg); border-radius: 12px; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #30363d; }
+        .badge-lvl {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 20px;
+            margin-top: 4px;
+            letter-spacing: .8px;
+            text-transform: uppercase;
+            transition: background .3s, color .3s;
+        }
+        .badge-normal { background: #21262d; color: var(--muted); }
+        .badge-low    { background: rgba(63,185,80,.2);  color: var(--low);  }
+        .badge-medium { background: rgba(210,153,34,.2); color: var(--med);  }
+        .badge-high   { background: rgba(248,81,73,.2);  color: var(--high); }
+
+        /* ── Stats Grid ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+        .card {
+            background: var(--cb);
+            border: 1px solid var(--bdr);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .chart-wrap { height: 220px; }
+
+        /* ── Sensor Panel ── */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+        .sensor-card {
+            background: var(--cb);
+            border: 1px solid var(--bdr);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            transition: border-color .3s;
+        }
+        .sensor-card.active-high   { border-color: var(--high); }
+        .sensor-card.active-medium { border-color: var(--med);  }
+        .sensor-card.active-low    { border-color: var(--low);  }
+
+        .sensor-card h4 { font-size: 12px; color: var(--muted); margin-bottom: 12px; letter-spacing: .5px; }
+
+        .btn-group { display: flex; flex-direction: column; gap: 7px; }
+
+        .btn-lvl {
+            border: none;
+            border-radius: 6px;
+            padding: 7px 0;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: .5px;
+            transition: opacity .15s, transform .1s, box-shadow .2s;
+            opacity: .55;
+        }
+        .btn-lvl:hover  { opacity: .85; }
+        .btn-lvl:active { transform: scale(.96); }
+        .btn-lvl.active { opacity: 1; box-shadow: 0 0 12px currentColor; }
+
+        .btn-low    { background: rgba(63,185,80,.15);  color: var(--low);  border: 1px solid var(--low);  }
+        .btn-med    { background: rgba(210,153,34,.15); color: var(--med);  border: 1px solid var(--med);  }
+        .btn-high   { background: rgba(248,81,73,.15);  color: var(--high); border: 1px solid var(--high); }
+
+        .pulse-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+            animation: pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%       { opacity: .4; transform: scale(.7); }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1c2128;
+            border: 1px solid var(--nb);
+            color: var(--nb);
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 12px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity .3s, transform .3s;
+            z-index: 999;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        /* ── Control Table ── */
+        table { width: 100%; background: var(--cb); border-radius: 12px; border-collapse: collapse; }
+        th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--bdr); font-size: 13px; }
+        th { color: var(--muted); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
+        .btn-ovr {
+            background: var(--high);
+            color: white; border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .btn-ovr:hover { background: #e03d3a; }
+
+        /* AI insight */
+        .insight-item {
+            display: flex; align-items: flex-start;
+            gap: 10px; margin-bottom: 14px;
+            padding: 10px;
+            background: rgba(0,212,255,.04);
+            border-radius: 8px;
+            border-left: 3px solid var(--nb);
+            font-size: 12px; color: #cdd9e5;
+        }
+        .insight-item span { font-size: 16px; }
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <h2 style="color: var(--neon-blue);">🛰️ SKYNET TMS</h2>
-        <div style="margin-top: 40px; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 10px;">
-            <p style="margin:0; font-size: 11px; color: #8b949e;">HEARTBEAT</p>
-            <p>⏱️ Cycle: <span id="timer" style="color: var(--neon-blue);">10s</span></p>
+
+<!-- ── Sidebar ── -->
+<div class="sidebar">
+    <h2>🛰️ SKYNET TMS</h2>
+
+    <div class="hb-box">
+        <p>HEARTBEAT</p>
+        <div style="color: var(--nb); font-size: 14px;">⏱️ Cycle: <span id="timer">10s</span></div>
+    </div>
+
+    <div class="hb-box">
+        <p>ADAPTIVE CYCLE</p>
+        <div class="lvl-legend">
+            <div><span class="dot-sm" style="background:var(--low)"></span>Low → 8s green</div>
+            <div><span class="dot-sm" style="background:var(--med)"></span>Medium → 10s green</div>
+            <div><span class="dot-sm" style="background:var(--high)"></span>High → 20s green</div>
         </div>
     </div>
 
-    <div class="main-content">
-        <h2>📍 Live Topology</h2>
-        <div class="city-map">
-            <div class="road road-h1"></div><div class="road road-h2"></div>
-            <div class="road road-v1"></div><div class="road road-v2"></div>
-            {% for row in traffic_data %}
-            <div class="junction-node node-{{ loop.index }}">
-                <div class="light-indicator {{ row.Signal_Status }}"></div>
-                <small style="color: #8b949e;">{{ row.Junction }}</small><br>
-                <b style="color: var(--neon-blue);">{{ row.Vehicles_Passed }} vps</b>
-                <div style="height:10px; overflow:hidden; position:relative;">
-                    <span class="dot"></span><span class="dot" style="animation-delay: 1s;"></span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+    <div class="hb-box" id="log-feed">
+        <p>LIVE FEED</p>
+        <div id="feed-list" style="font-size: 11px; color: var(--muted); margin-top: 6px;"></div>
+    </div>
+</div>
 
-        <div class="stats-grid">
-            <div class="chart-container"><canvas id="trafficChart"></canvas></div>
-            <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid #30363d;">
-                <h3>AI Insights</h3>
-                <p style="color: var(--neon-blue); font-size: 14px;">Optimizing Round-Robin slices...</p>
+<!-- ── Main ── -->
+<div class="main">
+
+    <!-- City Map -->
+    <h2>📍 Live Topology</h2>
+    <div class="city-map">
+        <div class="road road-h1"></div>
+        <div class="road road-h2"></div>
+        <div class="road road-v1"></div>
+        <div class="road road-v2"></div>
+
+        {% for row in traffic_data %}
+        <div class="junction-node jnode node-{{ loop.index }}" id="mapnode-{{ row.ID }}">
+            <span class="li {{ row.Signal_Status }}"></span>
+            <small style="color: var(--muted);">{{ row.Junction }}</small><br>
+            <b style="color: var(--nb);">{{ row.Vehicles_Passed }} vps</b>
+            <div>
+                <span class="badge-lvl badge-{{ t_lvl[row.ID] }}" id="badge-{{ row.ID }}">
+                    {{ t_lvl[row.ID] }}
+                </span>
+            </div>
+            <div style="height:10px; overflow:hidden; position:relative; margin-top:4px;">
+                <span class="flow-dot"></span>
+                <span class="flow-dot" style="animation-delay:1s;"></span>
             </div>
         </div>
-
-        <h2>📜 Control Panel</h2>
-        <table>
-            <tr><th>Location</th><th>Status</th><th>Emergency</th></tr>
-            {% for row in traffic_data %}
-            <tr>
-                <td><b>{{ row.Junction }}</b></td>
-                <td><span style="color: {{ '#3fb950' if row.Signal_Status == 'GREEN' else '#f85149' }}">{{ row.Signal_Status }}</span></td>
-                <td>
-                    <form action="/simulate" method="POST">
-                        <input type="hidden" name="s_id" value="{{ row.ID }}">
-                        <button type="submit" class="btn-override">🚨 OVERRIDE</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
+        {% endfor %}
     </div>
 
-    <script>
-        const ctx = document.getElementById('trafficChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: [{% for row in traffic_data %} '{{ row.Junction }}', {% endfor %}],
-                datasets: [{ label: 'Density', data: [{% for row in traffic_data %} {{ row.Vehicles_Passed }}, {% endfor %}], backgroundColor: 'rgba(0, 212, 255, 0.5)', borderColor: '#00d4ff', borderWidth: 1 }]
-            },
-            options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: '#222' } } } }
-        });
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="card">
+            <div class="chart-wrap"><canvas id="trafficChart"></canvas></div>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:14px; font-size:14px;">🤖 AI Insights</h3>
+            <div class="insight-item"><span>⚡</span><div id="ins-cycle">Adaptive cycle running. No high-load junctions detected.</div></div>
+            <div class="insight-item"><span>📊</span><div id="ins-manual">Awaiting manual sensor input...</div></div>
+            <div class="insight-item"><span>🔄</span><div>Round-robin base: 10s slices. Override window: 15s recovery.</div></div>
+        </div>
+    </div>
 
-        let timeLeft = 10;
-        setInterval(() => { timeLeft--; if (timeLeft < 0) timeLeft = 10; document.getElementById('timer').innerText = timeLeft + "s"; }, 1000);
-        setTimeout(() => { location.reload(); }, 5000);
-    </script>
+    <!-- ── Sensor Input Panel ── -->
+    <h2>🎛️ Sensor Input Panel <span style="font-size:11px; color:var(--muted); font-weight:400;">— Manual trigger mode</span></h2>
+    <div class="sensor-grid">
+        {% for row in traffic_data %}
+        <div class="sensor-card" id="sc-{{ row.ID }}">
+            <h4>
+                <span class="pulse-dot" id="pdot-{{ row.ID }}" style="background: var(--muted);"></span>
+                J{{ loop.index }} — {{ row.Junction }}
+            </h4>
+            <div class="btn-group">
+                <button class="btn-lvl btn-low"  onclick="sendSensor({{ row.ID }}, 'low')">🟢 LOW</button>
+                <button class="btn-lvl btn-med"  onclick="sendSensor({{ row.ID }}, 'medium')">🟡 MEDIUM</button>
+                <button class="btn-lvl btn-high" onclick="sendSensor({{ row.ID }}, 'high')">🔴 HIGH</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Control Table -->
+    <h2>📜 Control Panel</h2>
+    <table>
+        <tr>
+            <th>Location</th>
+            <th>Signal</th>
+            <th>Traffic Level</th>
+            <th>Green Duration</th>
+            <th>Emergency</th>
+        </tr>
+        {% for row in traffic_data %}
+        <tr id="trow-{{ row.ID }}">
+            <td><b>{{ row.Junction }}</b></td>
+            <td>
+                <span style="color: {{ '#3fb950' if row.Signal_Status == 'GREEN' else '#f85149' }}">
+                    ● {{ row.Signal_Status }}
+                </span>
+            </td>
+            <td>
+                <span class="badge-lvl badge-{{ t_lvl[row.ID] }}" id="tbadge-{{ row.ID }}">
+                    {{ t_lvl[row.ID] }}
+                </span>
+            </td>
+            <td id="tdur-{{ row.ID }}" style="color: var(--nb); font-size: 13px;">
+                {% if t_lvl[row.ID] == 'high' %}20s{% elif t_lvl[row.ID] == 'low' %}8s{% else %}10s{% endif %}
+            </td>
+            <td>
+                <form action="/simulate" method="POST" style="display:inline;">
+                    <input type="hidden" name="s_id" value="{{ row.ID }}">
+                    <button type="submit" class="btn-ovr">🚨 OVERRIDE</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<script>
+    // ── Chart ────────────────────────────────
+    const ctx = document.getElementById('trafficChart').getContext('2d');
+    const trafficChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels:   [{% for row in traffic_data %}'{{ row.Junction }}',{% endfor %}],
+            datasets: [{
+                label: 'Vehicles Passed',
+                data:  [{% for row in traffic_data %}{{ row.Vehicles_Passed }},{% endfor %}],
+                backgroundColor : 'rgba(0,212,255,0.25)',
+                borderColor: '#00d4ff',
+                borderWidth: 2,
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#8b949e', font: { size: 11 } } } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#1c2128' }, ticks: { color: '#8b949e' } },
+                x: { grid: { color: '#1c2128' }, ticks: { color: '#8b949e' } }
+            }
+        }
+    });
+
+    // ── Countdown timer ───────────────────────
+    let tLeft = 10;
+    setInterval(() => {
+        tLeft--;
+        if (tLeft < 0) tLeft = 10;
+        document.getElementById('timer').innerText = tLeft + 's';
+    }, 1000);
+
+    // ── Auto reload (page data) ───────────────
+    setTimeout(() => location.reload(), 8000);
+
+    // ── Toast helper ─────────────────────────
+    function showToast(msg, color='var(--nb)') {
+        const t = document.getElementById('toast');
+        t.innerText = msg;
+        t.style.borderColor = color;
+        t.style.color = color;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    // ── Live feed (sidebar) ───────────────────
+    const feedList = document.getElementById('feed-list');
+    function addFeed(junc, level, src) {
+        const colors = { low: 'var(--low)', medium: 'var(--med)', high: 'var(--high)' };
+        const entry  = document.createElement('div');
+        entry.style.cssText = 'margin-bottom:5px; padding:4px 0; border-bottom:1px solid #21262d;';
+        entry.innerHTML = `<span style="color:${colors[level] || 'var(--muted)'}">●</span>
+            J${junc} → <b>${level.toUpperCase()}</b>
+            <span style="color:var(--muted);font-size:10px;"> [${src}]</span>`;
+        feedList.prepend(entry);
+        if (feedList.children.length > 6) feedList.removeChild(feedList.lastChild);
+    }
+
+    // ── Duration map (mirrors backend) ────────
+    const durMap = { low: '8s', medium: '10s', high: '20s', normal: '10s' };
+
+    // ── Sensor send (AJAX) ────────────────────
+    function sendSensor(sid, level) {
+        // Update button states immediately (optimistic UI)
+        const card = document.getElementById(`sc-${sid}`);
+        card.querySelectorAll('.btn-lvl').forEach(b => b.classList.remove('active'));
+        const btnMap = { low: 'btn-low', medium: 'btn-med', high: 'btn-high' };
+        card.querySelector(`.${btnMap[level]}`).classList.add('active');
+
+        // Update sensor card border
+        card.className = `sensor-card active-${level}`;
+
+        // Update pulse dot color
+        const dotColors = { low: 'var(--low)', medium: 'var(--med)', high: 'var(--high)' };
+        document.getElementById(`pdot-${sid}`).style.background = dotColors[level];
+
+        // POST to /sensor
+        fetch('/sensor', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ s_id: sid, level: level })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.ok) { showToast('⚠️ DB error — check console', 'var(--high)'); return; }
+
+            // Update map node badge
+            const badgeClass = `badge-lvl badge-${level}`;
+            ['badge', 'tbadge'].forEach(prefix => {
+                const el = document.getElementById(`${prefix}-${sid}`);
+                if (el) { el.className = badgeClass; el.innerText = level; }
+            });
+
+            // Update map node border
+            const mn = document.getElementById(`mapnode-${sid}`);
+            if (mn) mn.className = `junction-node jnode node-${sid} ${level.toUpperCase()}`;
+
+            // Update duration cell in table
+            const tdur = document.getElementById(`tdur-${sid}`);
+            if (tdur) tdur.innerText = durMap[level] || '10s';
+
+            // Update AI insights
+            const highCount = Object.values(currentLevels).filter(v => v === 'high').length;
+            document.getElementById('ins-cycle').innerText =
+                highCount > 0
+                    ? `${highCount} junction(s) at HIGH load — extended to 20s green.`
+                    : 'All junctions nominal. Standard 10s cycle active.';
+
+            document.getElementById('ins-manual').innerText =
+                `Last manual input: J${sid} → ${level.toUpperCase()} (${data.vehicles} veh)`;
+
+            // Update local state
+            currentLevels[sid] = level;
+
+            // Sidebar feed + toast
+            addFeed(sid, level, 'Manual_Input');
+            const msgs = {
+                low:    `✅ J${sid} set to LOW — 8s green slice`,
+                medium: `📊 J${sid} set to MEDIUM — 10s green slice`,
+                high:   `🔴 J${sid} set to HIGH — extended to 20s green!`
+            };
+            showToast(msgs[level], dotColors[level]);
+        })
+        .catch(() => showToast('❌ Network error', 'var(--high)'));
+    }
+
+    // ── Track current levels locally ─────────
+    const currentLevels = {
+        {% for row in traffic_data %}{{ row.ID }}: '{{ t_lvl[row.ID] }}',{% endfor %}
+    };
+
+    // ── Poll /levels every 4s to sync state ──
+    setInterval(() => {
+        fetch('/levels')
+            .then(r => r.json())
+            .then(lvls => {
+                Object.entries(lvls).forEach(([sid, level]) => {
+                    currentLevels[sid] = level;
+                });
+            });
+    }, 4000);
+</script>
+
 </body>
 </html>
